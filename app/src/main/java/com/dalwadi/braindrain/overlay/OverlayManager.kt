@@ -27,25 +27,23 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import com.dalwadi.braindrain.R
 import com.dalwadi.braindrain.core.model.BrainState
 import com.dalwadi.braindrain.core.model.RealityNudgeRegistry
-import com.dalwadi.braindrain.R
 
 class OverlayManager(private val context: Context) {
 
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    // 1. Floating Pill HUD Elements
-    private var pillRootView: View? = null
+    // 1. Ultra-Compact Floating Pill HUD
+    private var pillView: View? = null
     private var isPillAttached = false
-    private var particleEmitter: ParticleEmitterView? = null
     private var iconView: ImageView? = null
     private var countNumberView: TextView? = null
-    private var countLabelView: TextView? = null
     private var limitBadgeView: TextView? = null
-    private var nudgeTickerView: TextView? = null
     private var pillBackground: GradientDrawable? = null
+    private var particleEmitter: ParticleEmitterView? = null
     private var currentPillParams: WindowManager.LayoutParams? = null
 
     // Pill dragging state
@@ -58,7 +56,11 @@ class OverlayManager(private val context: Context) {
     private var lastCount = -1
     private var lastNudgeTime = 0L
 
-    // 2. Center Reality Check Intervention Card Elements
+    // 2. Standalone Non-Blocking Nudge Banner Window
+    private var nudgeBannerView: View? = null
+    private var isNudgeAttached = false
+
+    // 3. Center Reality Check Intervention Window
     private var realityCheckView: View? = null
     private var isRealityCheckAttached = false
     private var lastInterventionDismissCount = -1
@@ -73,14 +75,13 @@ class OverlayManager(private val context: Context) {
             if (!Settings.canDrawOverlays(context)) return@post
 
             ensurePillOverlayCreated()
-            pillRootView?.visibility = View.VISIBLE
+            pillView?.visibility = View.VISIBLE
 
             val brainState = BrainState.fromScrollCount(count, limit)
             val accentColor = brainState.accentColorHex.toInt()
 
             countNumberView?.text = count.toString()
-            countLabelView?.text = if (count == 1) "REEL" else "REELS"
-            limitBadgeView?.text = "/ $limit"
+            limitBadgeView?.text = "/$limit"
 
             iconView?.setImageDrawable(ContextCompat.getDrawable(context, brainState.vectorResId))
             pillBackground?.setStroke(dpToPx(1.5f), accentColor)
@@ -90,14 +91,12 @@ class OverlayManager(private val context: Context) {
             if (count != lastCount && lastCount != -1) {
                 animateCounterPulse()
 
-                // Welding sparks animation in FATIGUE state
+                // Welding sparks inside pill in FATIGUE state
                 if (brainState == BrainState.FATIGUE) {
-                    val iconX = dpToPx(25f).toFloat()
-                    val iconY = dpToPx(20f).toFloat()
-                    particleEmitter?.emitSparks(iconX, iconY, count = 10)
+                    particleEmitter?.emitSparks(dpToPx(16f).toFloat(), dpToPx(14f).toFloat(), count = 8)
                 }
 
-                // Check for witty/stoic psychological reality nudge
+                // Temporary non-blocking psychological nudge banner
                 checkAndTriggerNudge(count, limit)
 
                 // Check for Center Reality Check Intervention
@@ -106,54 +105,102 @@ class OverlayManager(private val context: Context) {
                 }
             }
 
-            // Thermal melting / ember animation in DEPLETED state
             particleEmitter?.setThermalActive(brainState == BrainState.DEPLETED)
-
             lastCount = count
         }
     }
 
     private fun checkAndTriggerNudge(count: Int, limit: Int) {
         val now = SystemClock.uptimeMillis()
-        if (now - lastNudgeTime < 15_000L) return // At least 15s between nudges
+        if (now - lastNudgeTime < 25_000L) return // Spacing out nudges
 
         val nudge = RealityNudgeRegistry.getNudge(count, limit) ?: return
         lastNudgeTime = now
-        displayNudgeMarquee(nudge)
+        showTemporaryNudgeBanner(nudge)
     }
 
-    private fun displayNudgeMarquee(text: String) {
-        val ticker = nudgeTickerView ?: return
-        ticker.text = text
-        ticker.alpha = 0f
-        ticker.visibility = View.VISIBLE
+    private fun showTemporaryNudgeBanner(text: String) {
+        if (!Settings.canDrawOverlays(context)) return
+        dismissNudgeBanner()
 
-        ticker.animate()
-            .alpha(1f)
-            .setDuration(350)
-            .setListener(object : AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: Animator) {
-                    mainHandler.postDelayed({
-                        ticker.animate()
-                            .alpha(0f)
-                            .setDuration(400)
-                            .setListener(object : AnimatorListenerAdapter() {
-                                override fun onAnimationEnd(anim: Animator) {
-                                    ticker.visibility = View.GONE
-                                }
-                            })
-                            .start()
-                    }, 4000L) // Show for 4 seconds
-                }
-            })
-            .start()
+        // Separate, standalone non-blocking window (FLAG_NOT_TOUCHABLE ensures Instagram/YouTube touches are never blocked)
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            else
+                @Suppress("DEPRECATION")
+                WindowManager.LayoutParams.TYPE_PHONE,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            x = 0
+            y = dpToPx(52f) // Floats comfortably below camera cutout and pill
+        }
+
+        val banner = TextView(context).apply {
+            this.text = text
+            textSize = 10.5f
+            setTextColor(0xFFF1F5F9.toInt())
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            gravity = Gravity.CENTER
+            setPadding(dpToPx(14f), dpToPx(5f), dpToPx(14f), dpToPx(5f))
+            background = GradientDrawable().apply {
+                setColor(0xF00A0E18.toInt())
+                cornerRadius = dpToPx(16f).toFloat()
+                setStroke(dpToPx(1f), 0x55475569.toInt())
+            }
+            alpha = 0f
+        }
+
+        nudgeBannerView = banner
+        try {
+            windowManager.addView(banner, params)
+            isNudgeAttached = true
+
+            banner.animate()
+                .alpha(1f)
+                .setDuration(300)
+                .setListener(object : AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: Animator) {
+                        mainHandler.postDelayed({
+                            banner.animate()
+                                .alpha(0f)
+                                .setDuration(350)
+                                .setListener(object : AnimatorListenerAdapter() {
+                                    override fun onAnimationEnd(anim: Animator) {
+                                        dismissNudgeBanner()
+                                    }
+                                })
+                                .start()
+                        }, 3500L)
+                    }
+                })
+                .start()
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun dismissNudgeBanner() {
+        if (isNudgeAttached && nudgeBannerView != null) {
+            try {
+                windowManager.removeView(nudgeBannerView)
+            } catch (_: Exception) {
+            }
+            nudgeBannerView = null
+            isNudgeAttached = false
+        }
     }
 
     private fun animateCounterPulse() {
         val target = countNumberView ?: return
         val anim = ValueAnimator.ofFloat(1.0f, 1.35f, 1.0f).apply {
-            duration = 300
-            interpolator = OvershootInterpolator(2.5f)
+            duration = 260
+            interpolator = OvershootInterpolator(2.2f)
             addUpdateListener {
                 val scale = it.animatedValue as Float
                 target.scaleX = scale
@@ -165,20 +212,23 @@ class OverlayManager(private val context: Context) {
 
     fun hideOverlay() {
         mainHandler.post {
-            pillRootView?.visibility = View.GONE
+            pillView?.visibility = View.GONE
             particleEmitter?.setThermalActive(false)
+            dismissNudgeBanner()
+            dismissRealityCheckIntervention()
         }
     }
 
     fun destroy() {
         mainHandler.post {
             dismissRealityCheckIntervention()
-            if (isPillAttached && pillRootView != null) {
+            dismissNudgeBanner()
+            if (isPillAttached && pillView != null) {
                 try {
-                    windowManager.removeView(pillRootView)
+                    windowManager.removeView(pillView)
                 } catch (_: Exception) {
                 }
-                pillRootView = null
+                pillView = null
                 isPillAttached = false
             }
         }
@@ -198,6 +248,7 @@ class OverlayManager(private val context: Context) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
             else
+                @Suppress("DEPRECATION")
                 WindowManager.LayoutParams.TYPE_PHONE,
             WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                     WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
@@ -213,17 +264,17 @@ class OverlayManager(private val context: Context) {
         val card = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(dpToPx(24f), dpToPx(28f), dpToPx(24f), dpToPx(28f))
+            setPadding(dpToPx(24f), dpToPx(26f), dpToPx(24f), dpToPx(26f))
 
             background = GradientDrawable().apply {
-                setColor(0xFC0B0F1A.toInt()) // Deep midnight card
+                setColor(0xFC0B0F1A.toInt())
                 cornerRadius = dpToPx(24f).toFloat()
-                setStroke(dpToPx(2f), 0xFFFF1744.toInt()) // Crimson alert border
+                setStroke(dpToPx(2f), 0xFFFF1744.toInt())
             }
             elevation = dpToPx(20f).toFloat()
 
             val cardParams = FrameLayout.LayoutParams(
-                dpToPx(340f),
+                dpToPx(320f),
                 FrameLayout.LayoutParams.WRAP_CONTENT
             ).apply {
                 gravity = Gravity.CENTER
@@ -231,7 +282,6 @@ class OverlayManager(private val context: Context) {
             layoutParams = cardParams
         }
 
-        // Header Alert Pill
         val alertBadge = TextView(context).apply {
             text = "REALITY CHECK · QUOTA BREACHED"
             textSize = 10f
@@ -246,20 +296,18 @@ class OverlayManager(private val context: Context) {
             }
         }
 
-        // Vector Depleted Brain Icon
         val brainIcon = ImageView(context).apply {
-            val size = dpToPx(48f)
+            val size = dpToPx(44f)
             layoutParams = LinearLayout.LayoutParams(size, size).apply {
-                topMargin = dpToPx(16f)
-                bottomMargin = dpToPx(14f)
+                topMargin = dpToPx(14f)
+                bottomMargin = dpToPx(12f)
             }
             setImageDrawable(ContextCompat.getDrawable(context, R.drawable.ic_brain_depleted))
         }
 
-        // Main Intervention Heading
         val title = TextView(context).apply {
             text = "Will watching further help you?"
-            textSize = 19f
+            textSize = 18f
             setTextColor(Color.WHITE)
             typeface = Typeface.create("sans-serif", Typeface.BOLD)
             gravity = Gravity.CENTER
@@ -267,14 +315,13 @@ class OverlayManager(private val context: Context) {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply {
-                bottomMargin = dpToPx(10f)
+                bottomMargin = dpToPx(8f)
             }
         }
 
-        // Subtitle Reality Message
         val subtitle = TextView(context).apply {
             text = "You are trading precious, irreplaceable hours of your day which will never return. Step back and break the loop."
-            textSize = 13f
+            textSize = 12.5f
             setTextColor(0xFF94A3B8.toInt())
             gravity = Gravity.CENTER
             setLineSpacing(0f, 1.25f)
@@ -282,18 +329,17 @@ class OverlayManager(private val context: Context) {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply {
-                bottomMargin = dpToPx(18f)
+                bottomMargin = dpToPx(16f)
             }
         }
 
-        // Stats pill
         val statBadge = TextView(context).apply {
             text = "$count REELS CONSUMED (LIMIT: $limit)"
-            textSize = 11f
+            textSize = 10.5f
             setTextColor(0xFFE2E8F0.toInt())
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             letterSpacing = 0.08f
-            setPadding(dpToPx(14f), dpToPx(6f), dpToPx(14f), dpToPx(6f))
+            setPadding(dpToPx(12f), dpToPx(5f), dpToPx(12f), dpToPx(5f))
             background = GradientDrawable().apply {
                 setColor(0x331E293B.toInt())
                 cornerRadius = dpToPx(8f).toFloat()
@@ -302,11 +348,10 @@ class OverlayManager(private val context: Context) {
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply {
-                bottomMargin = dpToPx(22f)
+                bottomMargin = dpToPx(20f)
             }
         }
 
-        // Primary Action: STEP AWAY & EXIT
         val exitButton = TextView(context).apply {
             text = "STEP AWAY & EXIT"
             textSize = 13f
@@ -314,16 +359,16 @@ class OverlayManager(private val context: Context) {
             typeface = Typeface.create("sans-serif-black", Typeface.BOLD)
             letterSpacing = 0.08f
             gravity = Gravity.CENTER
-            setPadding(0, dpToPx(13f), 0, dpToPx(13f))
+            setPadding(0, dpToPx(12f), 0, dpToPx(12f))
             background = GradientDrawable().apply {
-                setColor(0xFF10B981.toInt()) // Emerald Green
+                setColor(0xFF10B981.toInt())
                 cornerRadius = dpToPx(14f).toFloat()
             }
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply {
-                bottomMargin = dpToPx(12f)
+                bottomMargin = dpToPx(10f)
             }
 
             setOnClickListener {
@@ -332,11 +377,10 @@ class OverlayManager(private val context: Context) {
             }
         }
 
-        // Secondary Action: HOLD TO DISMISS (with hold-to-continue friction progress bar)
         val holdContainer = FrameLayout(context).apply {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dpToPx(44f)
+                dpToPx(42f)
             )
             background = GradientDrawable().apply {
                 setColor(0x221E293B.toInt())
@@ -374,7 +418,6 @@ class OverlayManager(private val context: Context) {
         holdContainer.addView(holdProgressBar)
         holdContainer.addView(holdLabel)
 
-        // Hold-to-dismiss gesture handling
         var holdAnimator: ValueAnimator? = null
         holdContainer.setOnTouchListener { _, event ->
             when (event.action) {
@@ -416,8 +459,8 @@ class OverlayManager(private val context: Context) {
         card.addView(holdContainer)
 
         root.addView(card)
-
         realityCheckView = root
+
         try {
             windowManager.addView(realityCheckView, params)
             isRealityCheckAttached = true
@@ -425,7 +468,7 @@ class OverlayManager(private val context: Context) {
         }
     }
 
-    private fun dismissRealityCheckIntervention() {
+    fun dismissRealityCheckIntervention() {
         if (isRealityCheckAttached && realityCheckView != null) {
             try {
                 windowManager.removeView(realityCheckView)
@@ -437,19 +480,21 @@ class OverlayManager(private val context: Context) {
     }
 
     // ==========================================
-    // Top-Center Camera Pill HUD Construction
+    // Top-Center Camera Pill HUD (Ultra-Compact)
     // ==========================================
 
     @SuppressLint("ClickableViewAccessibility")
     private fun ensurePillOverlayCreated() {
-        if (isPillAttached && pillRootView != null) return
+        if (isPillAttached && pillView != null) return
 
+        // Tight Window Bounds: Only covers the compact capsule (~90x32 dp)
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
             else
+                @Suppress("DEPRECATION")
                 WindowManager.LayoutParams.TYPE_PHONE,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                     WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
@@ -457,117 +502,72 @@ class OverlayManager(private val context: Context) {
         ).apply {
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
             x = 0
-            y = dpToPx(16f) // Centered right by top camera
+            y = dpToPx(12f) // Centered right by top camera notch
         }
         currentPillParams = params
 
-        // Outer wrapper containing pill and particle emitter
-        val outerContainer = FrameLayout(context).apply {
-            setPadding(dpToPx(16f), dpToPx(10f), dpToPx(16f), dpToPx(10f))
+        // Capsule Root Frame
+        val capsuleRoot = FrameLayout(context).apply {
             clipChildren = false
             clipToPadding = false
         }
 
+        // Embedded particle canvas (same size as capsule, zero touch footprint)
         particleEmitter = ParticleEmitterView(context).apply {
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
         }
-        outerContainer.addView(particleEmitter)
+        capsuleRoot.addView(particleEmitter)
 
-        val columnWrapper = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-        }
-
-        // Pill Capsule
-        val pillCapsule = LinearLayout(context).apply {
+        // Ultra-Compact Content Capsule
+        val pillContent = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dpToPx(14f), dpToPx(6f), dpToPx(16f), dpToPx(6f))
+            setPadding(dpToPx(10f), dpToPx(4f), dpToPx(12f), dpToPx(4f))
 
             pillBackground = GradientDrawable().apply {
-                setColor(0xF0080C14.toInt()) // Deep obsidian glass surface
-                cornerRadius = dpToPx(40f).toFloat()
-                setStroke(dpToPx(1.5f), 0xFF10B981.toInt()) // Vibrant Emerald accent
+                setColor(0xF0080C14.toInt()) // Deep obsidian glass
+                cornerRadius = dpToPx(24f).toFloat()
+                setStroke(dpToPx(1.5f), 0xFF10B981.toInt())
             }
             background = pillBackground
-            elevation = dpToPx(14f).toFloat()
+            elevation = dpToPx(10f).toFloat()
         }
 
-        val iconSize = dpToPx(22f)
+        val iconSize = dpToPx(19f)
         iconView = ImageView(context).apply {
             layoutParams = LinearLayout.LayoutParams(iconSize, iconSize).apply {
-                marginEnd = dpToPx(8f)
+                marginEnd = dpToPx(6f)
             }
             setImageDrawable(ContextCompat.getDrawable(context, BrainState.OPTIMAL.vectorResId))
         }
 
-        val counterBox = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-
         countNumberView = TextView(context).apply {
             text = "0"
-            textSize = 15f
+            textSize = 14f
             setTextColor(Color.WHITE)
             typeface = Typeface.create("sans-serif-black", Typeface.BOLD)
         }
 
-        countLabelView = TextView(context).apply {
-            text = "REELS"
-            textSize = 10f
-            setTextColor(0xFF94A3B8.toInt())
-            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-            letterSpacing = 0.08f
-            setPadding(dpToPx(5f), 0, dpToPx(4f), 0)
-        }
-
         limitBadgeView = TextView(context).apply {
-            text = "/ 50"
+            text = "/50"
             textSize = 10f
             setTextColor(0xFF10B981.toInt())
             typeface = Typeface.create("sans-serif", Typeface.BOLD)
-            letterSpacing = 0.04f
+            letterSpacing = 0.02f
+            setPadding(dpToPx(2f), 0, 0, 0)
         }
 
-        counterBox.addView(countNumberView)
-        counterBox.addView(countLabelView)
-        counterBox.addView(limitBadgeView)
+        pillContent.addView(iconView)
+        pillContent.addView(countNumberView)
+        pillContent.addView(limitBadgeView)
 
-        pillCapsule.addView(iconView)
-        pillCapsule.addView(counterBox)
+        capsuleRoot.addView(pillContent)
 
-        // Expandable Nudge Marquee Ticker
-        nudgeTickerView = TextView(context).apply {
-            textSize = 10.5f
-            setTextColor(0xFFF1F5F9.toInt())
-            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-            gravity = Gravity.CENTER
-            setPadding(dpToPx(14f), dpToPx(5f), dpToPx(14f), dpToPx(5f))
-            visibility = View.GONE
-            background = GradientDrawable().apply {
-                setColor(0xEE0F172A.toInt())
-                cornerRadius = dpToPx(16f).toFloat()
-                setStroke(dpToPx(1f), 0x55475569.toInt())
-            }
-            layoutParams = LinearLayout.LayoutParams(
-                dpToPx(260f),
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                topMargin = dpToPx(6f)
-            }
-        }
-
-        columnWrapper.addView(pillCapsule)
-        columnWrapper.addView(nudgeTickerView)
-
-        outerContainer.addView(columnWrapper)
-
-        // Drag listener on the capsule
-        pillCapsule.setOnTouchListener { _, event ->
+        // Drag handling strictly within the capsule
+        pillContent.setOnTouchListener { _, event ->
             val p = currentPillParams ?: return@setOnTouchListener false
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
@@ -587,7 +587,7 @@ class OverlayManager(private val context: Context) {
                     p.x = initialX + deltaX
                     p.y = initialY + deltaY
                     try {
-                        windowManager.updateViewLayout(outerContainer, p)
+                        windowManager.updateViewLayout(capsuleRoot, p)
                     } catch (_: Exception) {
                     }
                     true
@@ -602,9 +602,9 @@ class OverlayManager(private val context: Context) {
             }
         }
 
-        pillRootView = outerContainer
+        pillView = capsuleRoot
         try {
-            windowManager.addView(pillRootView, params)
+            windowManager.addView(pillView, params)
             isPillAttached = true
         } catch (_: Exception) {
         }
