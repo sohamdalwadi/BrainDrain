@@ -9,7 +9,7 @@
 
 ## Overview
 
-**BrainDrain** is an open-source Android digital wellbeing and anti-doomscrolling utility inspired by BrainPal. Unlike commercial apps that lock screen limits and counters behind expensive weekly subscriptions, BrainDrain is built from the ground up to be:
+**BrainDrain** is an open-source Android digital wellbeing and anti-doomscrolling HUD utility. Unlike commercial apps that lock screen limits and counters behind expensive weekly subscriptions, BrainDrain is built from the ground up to be:
 
 * **100% Free Forever:** No pro tiers, no locked features, no trial periods.
 * **Completely Private & Local:** All accessibility event analysis and swipe counts happen strictly on device. No analytics, no tracking, no internet connection required.

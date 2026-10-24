@@ -38,21 +38,32 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION_NAME=$(jq -r '.versionName' latest.json)
-          RELEASE_NOTES=$(jq -r '.releaseNotes' latest.json)
+          VERSION_NAME=$(grep 'versionName = ' app/build.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/')
+          VERSION_CODE=$(grep 'versionCode = ' app/build.gradle.kts | sed -E 's/.*= ([0-9]+).*/\1/')
           TAG_NAME="v${VERSION_NAME}"
           APK_NAME="BrainDrain-${TAG_NAME}.apk"
           
           cp app/build/outputs/apk/debug/app-debug.apk "${APK_NAME}"
           
+          SUMMARY=$(git log -1 --pretty=format:"%s")
+          
+          cat <<EOF > latest.json
+          {
+            "versionCode": ${VERSION_CODE},
+            "versionName": "${VERSION_NAME}",
+            "apkUrl": "https://github.com/sohamdalwadi/BrainDrain/releases/download/${TAG_NAME}/${APK_NAME}",
+            "releaseNotes": "${SUMMARY}"
+          }
+          EOF
+
           if gh release view "${TAG_NAME}" > /dev/null 2>&1; then
-            echo "Release ${TAG_NAME} already exists. Uploading updated asset..."
-            gh release upload "${TAG_NAME}" "${APK_NAME}" --clobber
+            echo "Release ${TAG_NAME} already exists. Uploading updated assets..."
+            gh release upload "${TAG_NAME}" "${APK_NAME}" "latest.json" --clobber
           else
             echo "Creating stable release ${TAG_NAME}..."
-            gh release create "${TAG_NAME}" "${APK_NAME}" \
+            gh release create "${TAG_NAME}" "${APK_NAME}" "latest.json" \
               --title "BrainDrain ${TAG_NAME}" \
-              --notes "${RELEASE_NOTES}"
+              --generate-notes
           fi
 
       - name: Publish Beta Pre-Release (develop branch)
@@ -60,20 +71,43 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION_NAME=$(jq -r '.versionName' latest-beta.json)
-          RELEASE_NOTES=$(jq -r '.releaseNotes' latest-beta.json)
+          BASE_VERSION=$(grep 'versionName = ' app/build.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/')
+          BASE_CODE=$(grep 'versionCode = ' app/build.gradle.kts | sed -E 's/.*= ([0-9]+).*/\1/')
+          BETA_CODE=$((BASE_CODE * 1000 + GITHUB_RUN_NUMBER))
+          VERSION_NAME="${BASE_VERSION}-beta.${GITHUB_RUN_NUMBER}"
           TAG_NAME="v${VERSION_NAME}"
           APK_NAME="BrainDrain-${TAG_NAME}.apk"
           
           cp app/build/outputs/apk/debug/app-debug.apk "${APK_NAME}"
           
+          SUMMARY=$(git log -1 --pretty=format:"%s")
+          
+          cat <<EOF > latest-beta.json
+          {
+            "versionCode": ${BETA_CODE},
+            "versionName": "${VERSION_NAME}",
+            "apkUrl": "https://github.com/sohamdalwadi/BrainDrain/releases/download/${TAG_NAME}/${APK_NAME}",
+            "releaseNotes": "${SUMMARY}"
+          }
+          EOF
+
           if gh release view "${TAG_NAME}" > /dev/null 2>&1; then
-            echo "Beta Release ${TAG_NAME} already exists. Uploading updated asset..."
-            gh release upload "${TAG_NAME}" "${APK_NAME}" --clobber
+            echo "Beta Release ${TAG_NAME} already exists. Uploading updated assets..."
+            gh release upload "${TAG_NAME}" "${APK_NAME}" "latest-beta.json" --clobber
           else
             echo "Creating beta pre-release ${TAG_NAME}..."
-            gh release create "${TAG_NAME}" "${APK_NAME}" \
+            gh release create "${TAG_NAME}" "${APK_NAME}" "latest-beta.json" \
               --prerelease \
               --title "BrainDrain ${TAG_NAME} (Beta Channel)" \
-              --notes "${RELEASE_NOTES}"
+              --generate-notes
+          fi
+
+          # Update rolling beta-latest tag so app Beta channel URL always resolves
+          if gh release view "beta-latest" > /dev/null 2>&1; then
+            gh release upload "beta-latest" "${APK_NAME}" "latest-beta.json" --clobber
+          else
+            gh release create "beta-latest" "${APK_NAME}" "latest-beta.json" \
+              --prerelease \
+              --title "BrainDrain Beta Latest" \
+              --notes "Latest rolling build from develop branch"
           fi

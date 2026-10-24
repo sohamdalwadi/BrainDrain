@@ -17,20 +17,41 @@ class OtaRepository(private val context: Context) {
 
     suspend fun checkUpdate(channel: OtaChannel): OtaUpdateInfo? = withContext(Dispatchers.IO) {
         try {
-            val urlString = "https://raw.githubusercontent.com/$githubOwner/$githubRepo/${channel.branch}/${channel.manifestFile}"
-            val url = URL(urlString)
-            val connection = url.openConnection() as HttpURLConnection
-            connection.requestMethod = "GET"
-            connection.connectTimeout = 8000
-            connection.readTimeout = 8000
+            var currentUrl = channel.manifestUrl
+            var response: String? = null
 
-            if (connection.responseCode != 200) {
-                return@withContext null
+            for (redirect in 0..5) {
+                val url = URL(currentUrl)
+                val connection = url.openConnection() as HttpURLConnection
+                connection.instanceFollowRedirects = true
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 8000
+                connection.readTimeout = 8000
+                connection.setRequestProperty("User-Agent", "BrainDrain-Android")
+
+                val status = connection.responseCode
+                if (status == HttpURLConnection.HTTP_MOVED_PERM ||
+                    status == HttpURLConnection.HTTP_MOVED_TEMP ||
+                    status == 307 || status == 308
+                ) {
+                    val location = connection.getHeaderField("Location") ?: break
+                    currentUrl = location
+                    connection.disconnect()
+                    continue
+                }
+
+                if (status == HttpURLConnection.HTTP_OK) {
+                    val reader = BufferedReader(InputStreamReader(connection.inputStream))
+                    response = reader.readText()
+                    reader.close()
+                    connection.disconnect()
+                    break
+                }
+                connection.disconnect()
+                break
             }
 
-            val reader = BufferedReader(InputStreamReader(connection.inputStream))
-            val response = reader.readText()
-            reader.close()
+            if (response == null) return@withContext null
 
             val json = JSONObject(response)
             val remoteVersionCode = json.getInt("versionCode")
