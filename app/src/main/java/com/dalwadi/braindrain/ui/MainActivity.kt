@@ -44,12 +44,18 @@ class MainActivity : ComponentActivity() {
                     onOpenAccessibilitySettings = { openAccessibilitySettings() },
                     onOpenOverlaySettings = { openOverlaySettings() },
                     onPreviewOverlay = {
-                        val count = if (uiState.totalCount == 0) 1 else uiState.totalCount
-                        previewOverlayManager?.updateCount(count, uiState.dailyLimit)
+                        val testCount = (uiState.dailyLimit * 0.85f).toInt().coerceAtLeast(42)
+                        previewOverlayManager?.previewAnimations(testCount, uiState.dailyLimit)
                         handler.removeCallbacksAndMessages(null)
                         handler.postDelayed({
                             previewOverlayManager?.hideOverlay()
                         }, 8000)
+                    },
+                    onPreviewRealityCheck = {
+                        previewOverlayManager?.showRealityCheckIntervention(
+                            count = uiState.dailyLimit + 2,
+                            limit = uiState.dailyLimit
+                        )
                     },
                     onUpdateDailyLimit = { viewModel.setDailyLimit(it) },
                     onToggleOverlay = { viewModel.setOverlayEnabled(it) },
