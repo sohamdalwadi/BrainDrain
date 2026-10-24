@@ -5,6 +5,17 @@ on:
     branches:
       - main
       - develop
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/ISSUE_TEMPLATE/**'
+      - 'LICENSE'
+      - '.gitignore'
+      - '**.png'
+      - '**.jpg'
+      - '**.jpeg'
+      - '**.webp'
+      - '**.svg'
 
 permissions:
   contents: write
