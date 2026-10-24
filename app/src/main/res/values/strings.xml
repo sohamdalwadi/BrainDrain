@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">BrainDrain</string>
+    <string name="accessibility_service_description">BrainDrain monitors active short-form video feeds (such as Instagram Reels and YouTube Shorts) to calculate your scroll count in real time and display your brain fatigue index. All computation is strictly local and private.</string>
+</resources>

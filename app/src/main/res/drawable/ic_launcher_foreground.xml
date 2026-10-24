@@ -1,0 +1,39 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:pivotX="48"
+        android:pivotY="48"
+        android:scaleX="0.70"
+        android:scaleY="0.70"
+        android:translateX="6"
+        android:translateY="6">
+        <!-- Neural Brain Outline -->
+        <path
+            android:strokeColor="#10B981"
+            android:strokeWidth="3.2"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M 48,16 C 30,16 20,28 20,44 C 20,54 26,62 30,68 C 34,74 38,80 48,80 C 58,80 62,74 66,68 C 70,62 76,54 76,44 C 76,28 66,16 48,16 Z" />
+        <path
+            android:strokeColor="#10B981"
+            android:strokeWidth="2.5"
+            android:strokeLineCap="round"
+            android:pathData="M 48,22 C 46,32 50,42 48,52 C 46,62 48,72 48,76" />
+        <path
+            android:strokeColor="#34D399"
+            android:strokeWidth="2.2"
+            android:strokeLineCap="round"
+            android:pathData="M 32,36 L 40,42 L 34,54 M 26,46 L 34,46 M 38,62 L 44,58" />
+        <path
+            android:strokeColor="#34D399"
+            android:strokeWidth="2.2"
+            android:strokeLineCap="round"
+            android:pathData="M 64,36 L 56,42 L 62,54 M 70,46 L 62,46 M 58,62 L 52,58" />
+        <path
+            android:fillColor="#10B981"
+            android:pathData="M 32,36 m -2.5,0 a 2.5,2.5 0 1,0 5,0 a 2.5,2.5 0 1,0 -5,0 M 64,36 m -2.5,0 a 2.5,2.5 0 1,0 5,0 a 2.5,2.5 0 1,0 -5,0 M 40,42 m -2.5,0 a 2.5,2.5 0 1,0 5,0 a 2.5,2.5 0 1,0 -5,0 M 56,42 m -2.5,0 a 2.5,2.5 0 1,0 5,0 a 2.5,2.5 0 1,0 -5,0 M 48,52 m -2.5,0 a 2.5,2.5 0 1,0 5,0 a 2.5,2.5 0 1,0 -5,0" />
+    </group>
+</vector>
