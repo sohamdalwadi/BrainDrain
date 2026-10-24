@@ -44,6 +44,9 @@ class BrainDrainAccessibilityService : AccessibilityService() {
         super.onCreate()
         repository = PreferencesRepository(applicationContext)
         overlayManager = OverlayManager(applicationContext)
+        overlayManager.setOnExitToHomeListener {
+            performGlobalAction(GLOBAL_ACTION_HOME)
+        }
 
         vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager

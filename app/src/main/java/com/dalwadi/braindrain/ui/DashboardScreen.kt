@@ -80,6 +80,7 @@ fun DashboardScreen(
     onOpenAccessibilitySettings: () -> Unit,
     onOpenOverlaySettings: () -> Unit,
     onPreviewOverlay: () -> Unit,
+    onPreviewRealityCheck: () -> Unit = {},
     onUpdateDailyLimit: (Int) -> Unit,
     onToggleOverlay: (Boolean) -> Unit,
     onToggleHaptic: (Boolean) -> Unit,
@@ -410,6 +411,29 @@ fun DashboardScreen(
                         Text(
                             text = "TEST FLOATING COUNTER PILL",
                             color = AccentEmerald,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Button(
+                        onClick = onPreviewRealityCheck,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceElevated),
+                        border = BorderStroke(1.dp, Color(0xFFFF1744).copy(alpha = 0.7f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Warning,
+                            contentDescription = null,
+                            tint = Color(0xFFFF5252),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "TEST REALITY CHECK INTERVENTION",
+                            color = Color(0xFFFF5252),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )

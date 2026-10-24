@@ -22,6 +22,11 @@
 
 * **Real-Time Scroll Tracking:** Accurately counts short-form video consumption across **Instagram Reels** and **YouTube Shorts** with debounce and inertia filtering.
 * **Floating Live Pill HUD:** Non-intrusive, camera-framing floating overlay (Dynamic Island style) displaying real-time scroll counts and fatigue state directly over supported apps.
+* **Vector Particle Engine:** Hardware-accelerated geometric particle system:
+  * **Welding Sparks:** Amber spark discharges emit on scrolls during Attention Fatigue.
+  * **Thermal Meltdown:** Ascending crimson/ember vector particles drift upward when Attention is Depleted.
+* **Expanding Reality Nudges:** Witty, stoic, and philosophical reality-check quotes that smoothly expand from the camera pill to break mindless scrolling loops.
+* **Center Reality Check Intervention:** High-impact intervention modal upon reaching daily limits with deliberate "Step Away & Exit" and 2-second hold-to-continue friction to conquer compulsion.
 * **Neural State Index (Vector Engine):** Dynamic geometric brain state visualization reflecting dopamine reserve and attention fatigue:
   * **Optimal State:** High cognitive reserve, clear focus.
   * **Attention Fatigue:** Dopamine saturation warning, subtle attention nudge.
