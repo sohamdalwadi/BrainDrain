@@ -1,13 +1,25 @@
 package com.dalwadi.braindrain.ui
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.Stroke
+import kotlin.math.cos
+import kotlin.math.sin
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -252,7 +264,9 @@ fun DashboardScreen(
 
         // Hero Brain State Vector Card
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onPreviewOverlay() },
             shape = RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(containerColor = DarkSurface),
             border = BorderStroke(1.5.dp, animatedStateColor.copy(alpha = 0.6f))
@@ -263,21 +277,12 @@ fun DashboardScreen(
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Vector Brain Icon
-                Box(
-                    modifier = Modifier
-                        .size(96.dp)
-                        .clip(CircleShape)
-                        .background(animatedStateColor.copy(alpha = 0.12f))
-                        .border(BorderStroke(1.5.dp, animatedStateColor.copy(alpha = 0.35f)), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        painter = painterResource(id = state.brainState.vectorResId),
-                        contentDescription = state.brainState.title,
-                        modifier = Modifier.size(54.dp)
-                    )
-                }
+                // Vector Brain Icon with Breathing Aura and Orbiting Energy Particles
+                HeroBrainAura(
+                    stateColor = animatedStateColor,
+                    vectorResId = state.brainState.vectorResId,
+                    title = state.brainState.title
+                )
 
                 Spacer(modifier = Modifier.height(18.dp))
 
@@ -299,7 +304,18 @@ fun DashboardScreen(
                     lineHeight = 18.sp
                 )
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Tap card to test overlay & particle physics",
+                    color = animatedStateColor.copy(alpha = 0.75f),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    fontFamily = FontFamily.Monospace,
+                    letterSpacing = 0.5.sp
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
 
                 // Progress Bar
                 LinearProgressIndicator(
@@ -847,6 +863,93 @@ private fun StatusRow(
                     fontWeight = FontWeight.Bold
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun HeroBrainAura(
+    stateColor: Color,
+    vectorResId: Int,
+    title: String
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "hero_aura")
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 0.96f,
+        targetValue = 1.06f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1400, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse_scale"
+    )
+    val auraAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.12f,
+        targetValue = 0.35f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1400, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "aura_alpha"
+    )
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(7000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "aura_rotation"
+    )
+
+    Box(
+        modifier = Modifier.size(116.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        // Orbiting sparks / particles canvas
+        Canvas(modifier = Modifier.size(116.dp)) {
+            val centerOffset = Offset(size.width / 2, size.height / 2)
+            val orbitRadius = size.width * 0.44f
+
+            // Outer subtle glow ring
+            drawCircle(
+                color = stateColor.copy(alpha = auraAlpha * 0.4f),
+                radius = orbitRadius + (pulseScale - 1f) * 20f,
+                style = Stroke(width = 1.5.dp.toPx())
+            )
+
+            // Orbiting particle points
+            val particleCount = 4
+            val radBase = Math.toRadians(rotation.toDouble()).toFloat()
+            for (i in 0 until particleCount) {
+                val angle = radBase + (i * (2f * Math.PI.toFloat() / particleCount))
+                val px = centerOffset.x + orbitRadius * cos(angle)
+                val py = centerOffset.y + orbitRadius * sin(angle)
+                val particleAlpha = ((sin(angle.toDouble()) + 1.0) / 2.0).toFloat().coerceIn(0.2f, 1f)
+
+                drawCircle(
+                    color = stateColor.copy(alpha = particleAlpha * 0.8f),
+                    radius = 2.5.dp.toPx(),
+                    center = Offset(px, py)
+                )
+            }
+        }
+
+        // Inner glowing brain circular container
+        Box(
+            modifier = Modifier
+                .size(92.dp)
+                .scale(pulseScale)
+                .clip(CircleShape)
+                .background(stateColor.copy(alpha = auraAlpha))
+                .border(BorderStroke(1.5.dp, stateColor.copy(alpha = 0.5f)), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                painter = painterResource(id = vectorResId),
+                contentDescription = title,
+                modifier = Modifier.size(52.dp)
+            )
         }
     }
 }

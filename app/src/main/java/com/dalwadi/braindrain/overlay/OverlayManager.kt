@@ -91,9 +91,9 @@ class OverlayManager(private val context: Context) {
             if (count != lastCount && lastCount != -1) {
                 animateCounterPulse()
 
-                // Welding sparks inside pill in FATIGUE state
-                if (brainState == BrainState.FATIGUE) {
-                    particleEmitter?.emitSparks(dpToPx(16f).toFloat(), dpToPx(14f).toFloat(), count = 8)
+                // Welding sparks inside pill in FATIGUE and DEPLETED states
+                if (brainState == BrainState.FATIGUE || brainState == BrainState.DEPLETED) {
+                    particleEmitter?.emitSparks(dpToPx(19f).toFloat(), dpToPx(16f).toFloat(), count = 16)
                 }
 
                 // Temporary non-blocking psychological nudge banner
@@ -107,6 +107,29 @@ class OverlayManager(private val context: Context) {
 
             particleEmitter?.setThermalActive(brainState == BrainState.DEPLETED)
             lastCount = count
+        }
+    }
+
+    fun previewAnimations(testCount: Int = 45, limit: Int = 50) {
+        mainHandler.post {
+            if (!Settings.canDrawOverlays(context)) return@post
+            ensurePillOverlayCreated()
+            pillView?.visibility = View.VISIBLE
+
+            val brainState = BrainState.fromScrollCount(testCount, limit)
+            val accentColor = brainState.accentColorHex.toInt()
+
+            countNumberView?.text = testCount.toString()
+            limitBadgeView?.text = "/$limit"
+            iconView?.setImageDrawable(ContextCompat.getDrawable(context, brainState.vectorResId))
+            pillBackground?.setStroke(dpToPx(1.5f), accentColor)
+            limitBadgeView?.setTextColor(accentColor)
+
+            animateCounterPulse()
+            particleEmitter?.emitSparks(dpToPx(19f).toFloat(), dpToPx(16f).toFloat(), count = 22)
+            particleEmitter?.setThermalActive(true)
+            showTemporaryNudgeBanner("Dopamine saturation detected. Cognitive pause recommended.")
+            lastCount = testCount
         }
     }
 
@@ -517,7 +540,6 @@ class OverlayManager(private val context: Context) {
                 setStroke(dpToPx(1.5f), 0xFF10B981.toInt())
             }
             background = pillBackground
-            elevation = dpToPx(8f).toFloat()
         }
 
         val iconSize = dpToPx(18f)
@@ -573,16 +595,18 @@ class OverlayManager(private val context: Context) {
         }.apply {
             clipChildren = false
             clipToPadding = false
+            elevation = dpToPx(8f).toFloat()
         }
 
         capsuleRoot.addView(pillContent)
 
-        // Embedded particle canvas (matched exactly to capsule bounds)
+        // Embedded particle canvas (matched exactly to capsule bounds, elevated over pill background)
         particleEmitter = ParticleEmitterView(context).apply {
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
+            elevation = dpToPx(12f).toFloat()
         }
         capsuleRoot.addView(particleEmitter)
 

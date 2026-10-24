@@ -133,27 +133,30 @@ class ParticleEmitterView @JvmOverloads constructor(
             s.alpha = (1.0f - progress).coerceIn(0f, 1f)
             s.x += s.vx * dt
             s.y += s.vy * dt
-            s.vy += 450f * dt // Subtle gravity effect on sparks
+            s.vy += 200f * dt // Subtle gravity on sparks
 
             sparkPaint.color = s.color
             sparkPaint.alpha = (s.alpha * 255).toInt()
-            sparkPaint.strokeWidth = 2.5f
+            sparkPaint.strokeWidth = 3.5f
 
-            val tailX = s.x - (s.vx * 0.025f)
-            val tailY = s.y - (s.vy * 0.025f)
+            val tailX = s.x - (s.vx * 0.04f)
+            val tailY = s.y - (s.vy * 0.04f)
             canvas.drawLine(s.x, s.y, tailX, tailY, sparkPaint)
+
+            // Spark head glow point
+            canvas.drawCircle(s.x, s.y, 2.5f, sparkPaint)
         }
 
         // 2. Spawn and update rising embers if thermal active (Attention Depleted state)
         if (isThermalActive) {
-            if (now - lastEmberSpawnTime > 75L && embers.size < 24) {
+            if (now - lastEmberSpawnTime > 60L && embers.size < 28) {
                 lastEmberSpawnTime = now
-                val spawnX = width * (0.15f + Random.nextFloat() * 0.70f)
-                val spawnY = height * 0.85f + Random.nextFloat() * (height * 0.15f)
-                val vy = -(Random.nextFloat() * 80f + 40f) // Drifting upward
-                val size = Random.nextFloat() * 3.5f + 2f
+                val spawnX = width * (0.05f + Random.nextFloat() * 0.90f)
+                val spawnY = height * 0.75f + Random.nextFloat() * (height * 0.25f)
+                val vy = -(Random.nextFloat() * 45f + 25f) // Smooth rising drift
+                val size = Random.nextFloat() * 4f + 3f
                 val color = emberColors[Random.nextInt(emberColors.size)]
-                val lifetime = Random.nextLong(600L, 1200L)
+                val lifetime = Random.nextLong(700L, 1400L)
 
                 embers.add(
                     Ember(
@@ -183,12 +186,12 @@ class ParticleEmitterView @JvmOverloads constructor(
             val progress = age.toFloat() / e.lifetimeMs
             e.alpha = (1.0f - progress).coerceIn(0f, 1f)
             e.y += e.vy * dt
-            e.x += sin((now * 0.005f) + e.swaySeed).toFloat() * 18f * dt
+            e.x += sin((now * 0.005f) + e.swaySeed).toFloat() * 14f * dt
 
             emberPaint.color = e.color
-            emberPaint.alpha = (e.alpha * 220).toInt()
+            emberPaint.alpha = (e.alpha * 240).toInt()
 
-            // Draw crisp diamond ember
+            // Draw glowing diamond ember
             canvas.save()
             canvas.translate(e.x, e.y)
             canvas.rotate(45f)
@@ -196,7 +199,7 @@ class ParticleEmitterView @JvmOverloads constructor(
             canvas.restore()
         }
 
-        // Loop animation if active
+        // Keep loop running while animations are active
         if (sparks.isNotEmpty() || (isThermalActive && embers.isNotEmpty()) || isThermalActive) {
             postInvalidateOnAnimation()
         }

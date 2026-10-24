@@ -44,8 +44,8 @@ class MainActivity : ComponentActivity() {
                     onOpenAccessibilitySettings = { openAccessibilitySettings() },
                     onOpenOverlaySettings = { openOverlaySettings() },
                     onPreviewOverlay = {
-                        val count = if (uiState.totalCount == 0) 25 else uiState.totalCount
-                        previewOverlayManager?.updateCount(count, uiState.dailyLimit)
+                        val testCount = (uiState.dailyLimit * 0.85f).toInt().coerceAtLeast(42)
+                        previewOverlayManager?.previewAnimations(testCount, uiState.dailyLimit)
                         handler.removeCallbacksAndMessages(null)
                         handler.postDelayed({
                             previewOverlayManager?.hideOverlay()
