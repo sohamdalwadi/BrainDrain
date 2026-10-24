@@ -496,8 +496,7 @@ class OverlayManager(private val context: Context) {
             else
                 @Suppress("DEPRECATION")
                 WindowManager.LayoutParams.TYPE_PHONE,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
@@ -506,37 +505,22 @@ class OverlayManager(private val context: Context) {
         }
         currentPillParams = params
 
-        // Capsule Root Frame
-        val capsuleRoot = FrameLayout(context).apply {
-            clipChildren = false
-            clipToPadding = false
-        }
-
-        // Embedded particle canvas (same size as capsule, zero touch footprint)
-        particleEmitter = ParticleEmitterView(context).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT
-            )
-        }
-        capsuleRoot.addView(particleEmitter)
-
         // Ultra-Compact Content Capsule
         val pillContent = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dpToPx(10f), dpToPx(4f), dpToPx(12f), dpToPx(4f))
+            setPadding(dpToPx(10f), 0, dpToPx(12f), 0)
 
             pillBackground = GradientDrawable().apply {
                 setColor(0xF0080C14.toInt()) // Deep obsidian glass
-                cornerRadius = dpToPx(24f).toFloat()
+                cornerRadius = dpToPx(16f).toFloat()
                 setStroke(dpToPx(1.5f), 0xFF10B981.toInt())
             }
             background = pillBackground
-            elevation = dpToPx(10f).toFloat()
+            elevation = dpToPx(8f).toFloat()
         }
 
-        val iconSize = dpToPx(19f)
+        val iconSize = dpToPx(18f)
         iconView = ImageView(context).apply {
             layoutParams = LinearLayout.LayoutParams(iconSize, iconSize).apply {
                 marginEnd = dpToPx(6f)
@@ -564,10 +548,46 @@ class OverlayManager(private val context: Context) {
         pillContent.addView(countNumberView)
         pillContent.addView(limitBadgeView)
 
+        // Strict Capsule Root Frame: Explicitly measured to pillContent (never expands to screen)
+        val capsuleRoot = object : FrameLayout(context) {
+            override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+                val h = dpToPx(32f)
+                pillContent.measure(
+                    MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
+                    MeasureSpec.makeMeasureSpec(h, MeasureSpec.EXACTLY)
+                )
+                val w = pillContent.measuredWidth
+                setMeasuredDimension(w, h)
+
+                val exactW = MeasureSpec.makeMeasureSpec(w, MeasureSpec.EXACTLY)
+                val exactH = MeasureSpec.makeMeasureSpec(h, MeasureSpec.EXACTLY)
+                particleEmitter?.measure(exactW, exactH)
+            }
+
+            override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+                val w = right - left
+                val h = bottom - top
+                pillContent.layout(0, 0, w, h)
+                particleEmitter?.layout(0, 0, w, h)
+            }
+        }.apply {
+            clipChildren = false
+            clipToPadding = false
+        }
+
         capsuleRoot.addView(pillContent)
 
+        // Embedded particle canvas (matched exactly to capsule bounds)
+        particleEmitter = ParticleEmitterView(context).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+        }
+        capsuleRoot.addView(particleEmitter)
+
         // Drag handling strictly within the capsule
-        pillContent.setOnTouchListener { _, event ->
+        capsuleRoot.setOnTouchListener { _, event ->
             val p = currentPillParams ?: return@setOnTouchListener false
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {

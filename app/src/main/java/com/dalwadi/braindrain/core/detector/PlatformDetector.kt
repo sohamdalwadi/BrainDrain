@@ -20,5 +20,5 @@ interface PlatformDetector {
     /**
      * Checks if the received accessibility scroll event is a forward vertical swipe (new reel).
      */
-    fun isForwardScrollEvent(event: AccessibilityEvent): Boolean
+    fun isForwardScrollEvent(event: AccessibilityEvent, rootNode: AccessibilityNodeInfo? = null): Boolean
 }

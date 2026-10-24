@@ -84,6 +84,7 @@ class BrainDrainAccessibilityService : AccessibilityService() {
         cancelPendingHide()
 
         val detector = DetectorRegistry.getDetector(packageName) ?: return
+        val rootNode = try { rootInActiveWindow } catch (_: Exception) { null }
 
         serviceScope.launch {
             val isOverlayEnabled = repository.isOverlayEnabledFlow.first()
@@ -97,8 +98,8 @@ class BrainDrainAccessibilityService : AccessibilityService() {
             // Keep pill stably visible
             overlayManager.updateCount(totalSoFar, dailyLimit)
 
-            // Check vertical scroll / swipe
-            if (detector.isForwardScrollEvent(event)) {
+            // Check vertical forward scroll / swipe
+            if (detector.isForwardScrollEvent(event, rootNode)) {
                 val updatedTotal = repository.incrementCount(packageName)
                 overlayManager.updateCount(updatedTotal, dailyLimit)
 
